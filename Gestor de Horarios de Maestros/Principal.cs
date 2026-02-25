@@ -39,14 +39,18 @@ namespace Gestor_de_Horarios_de_Maestros
             comboBox1.ValueMember = "IdMaestro";
         }
 
-        private void CargarGrid(string nombreMaestro = "Todos")
+    private void CargarGrid(
+    string nombreMaestro = "",
+    string seccion = "",
+    string dia = "",
+    string credito = "",
+    string hora = "")
+{
+    try
+    {
+        using (MySqlConnection con = new MySqlConnection(connectionString))
         {
-            try
-            {
-                using (MySqlConnection con = new MySqlConnection(connectionString))
-                {
-                    // ELIMINADA la coma después de 'Créditos'
-                    string query = @"SELECT 
+            string query = @"SELECT 
                                 MaestroNombre AS 'Docente', 
                                 IdMateria AS 'ID',
                                 Nombre AS 'Materia', 
@@ -59,36 +63,58 @@ namespace Gestor_de_Horarios_de_Maestros
                                 Aula AS 'Aula', 
                                 Seccion AS 'Sección', 
                                 Credito AS 'Créditos'
-                             FROM HorariosView";
+                             FROM HorariosView
+                             WHERE 1=1";
 
-                    // Solo agregamos el WHERE si NO es "Todos" y NO es el objeto de sistema
-                    if (nombreMaestro != "Todos" && !nombreMaestro.Contains("System.Data.DataRowView"))
-                    {
-                        query += " WHERE MaestroNombre = @nombre";
-                    }
+            MySqlCommand cmd = new MySqlCommand();
+            cmd.Connection = con;
 
-                    query += " ORDER BY MaestroNombre ASC";
-
-                    MySqlCommand cmd = new MySqlCommand(query, con);
-
-                    if (nombreMaestro != "Todos" && !nombreMaestro.Contains("System.Data.DataRowView"))
-                    {
-                        cmd.Parameters.AddWithValue("@nombre", nombreMaestro);
-                    }
-
-                    MySqlDataAdapter da = new MySqlDataAdapter(cmd);
-                    DataTable dt = new DataTable();
-                    da.Fill(dt);
-                    dataGridView1.DataSource = dt;
-                }
-            }
-            catch (MySqlException ex)
+            if (!string.IsNullOrEmpty(nombreMaestro) && nombreMaestro != "Todos")
             {
-                MessageBox.Show("Error de MySQL: " + ex.Message);
-                dataGridView1.DataSource = null;
+                query += " AND MaestroNombre LIKE @nombre";
+                cmd.Parameters.AddWithValue("@nombre", "%" + nombreMaestro + "%");
             }
-        }
 
+            if (!string.IsNullOrEmpty(seccion))
+            {
+                query += " AND Seccion LIKE @seccion";
+                cmd.Parameters.AddWithValue("@seccion", "%" + seccion + "%");
+            }
+
+            if (!string.IsNullOrEmpty(dia))
+            {
+                query += " AND DiasImparte LIKE @dia";
+                cmd.Parameters.AddWithValue("@dia", "%" + dia + "%");
+            }
+
+            if (!string.IsNullOrEmpty(credito))
+            {
+                query += " AND Credito = @credito";
+                cmd.Parameters.AddWithValue("@credito", credito);
+            }
+
+            if (!string.IsNullOrEmpty(hora))
+            {
+                query += " AND Hora LIKE @hora";
+                cmd.Parameters.AddWithValue("@hora", "%" + hora + "%");
+            }
+
+            query += " ORDER BY MaestroNombre ASC";
+
+            cmd.CommandText = query;
+
+            MySqlDataAdapter da = new MySqlDataAdapter(cmd);
+            DataTable dt = new DataTable();
+            da.Fill(dt);
+
+            dataGridView1.DataSource = dt;
+        }
+    }
+    catch (MySqlException ex)
+    {
+        MessageBox.Show("Error: " + ex.Message);
+    }
+}
         public Principal()
         {
             InitializeComponent();
@@ -152,8 +178,7 @@ namespace Gestor_de_Horarios_de_Maestros
         {
             if (comboBox1.SelectedIndex != -1)
             {
-                string seleccion = comboBox1.Text;
-                CargarGrid(seleccion);
+                btnBuscar_Click(sender, e);
             }
         }
 
@@ -179,6 +204,17 @@ namespace Gestor_de_Horarios_de_Maestros
             CargarComboMaestros();
             CargarGrid();
             MessageBox.Show("Datos actualizados correctamente.", "Nítido", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private void btnBuscar_Click(object sender, EventArgs e)
+        {
+            CargarGrid(
+                comboBox1.Text,
+                txtSeccion.Text,
+                cmbDia.Text,
+                txtCredito.Text,
+                txtHora.Text
+            );
         }
     }
 }
